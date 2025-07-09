@@ -1,34 +1,17 @@
- 
-### install the packages
-### load the package
-## bioconductors 
-# variables in R
-# DIFFERENT  DATA TYPES IN R  - NUMERIC, CHARACTER , LOGICAL 
-# DATA FRAMES 
-## HOW TO SAVE THE FILE IN R- different format- csv, tsv
-## how to read the data
-
-
-# FUNCTIONS - INTERMEDIATE
-
-library(dplyr)       
+    
 library(GEOquery)
 library(limma)
 
 gse <- getGEO("GSE93272", GSEMatrix = TRUE, AnnotGPL = TRUE)
 gse_data <- gse[[1]]
-exprs_data <- exprs(gse_data) # expression data
-View(pheno_data)
-pheno_data <- pData(gse_data) # phenodata
-feature_data <- fData(gse_data) # annotation
-
-View(exprs_data)
-
+exprs_data <- exprs(gse_data)
+#View(exprs_data)
+pheno_data <- pData(gse_data)
+feature_data <- fData(gse_data)
 
 write.csv(exprs_data, "~/Downloads/Desktop/omics_project/week1/GSE272/datasets/GSE93272_expression_matrix.csv")
 write.csv(pheno_data, "~/Downloads/Desktop/omics_project/week1/GSE272/datasets/GSE93272_sample_metadata.csv")
 write.csv(feature_data, "~/Downloads/Desktop/omics_project/week1/GSE272/datasets/GSE93272_probe_annotation.csv")
-
 
 
 # Remove probes with too many NAs or zero variance
@@ -59,30 +42,32 @@ exprs_annotated$gene_symbol <- sapply(strsplit(exprs_annotated$gene_symbol, "///
 write.csv(exprs_annotated, "~/Downloads/Desktop/omics_project/week1/GSE272/datasets/GSE272_Exprs_annotated.csv")
 
 
+female_samples <- pheno_data$`gender:ch1` == "F"
+exprs_female <- exprs_annotated[, female_samples]
+pheno_female <- pheno_data[female_samples, ]
 
-View(pheno_data)
-male_samples <- pheno_data$`gender:ch1` == "M"
-#exprs_male <- exprs_data[, colnames(exprs_data) %in% male_samples]
-exprs_male <- exprs_annotated[, male_samples]
-pheno_male <- pheno_data[male_samples, ]
 
-# Define groups
-group_male <- factor(pheno_male$`disease state:ch1`)
-design_male <- model.matrix(~ 0 + group_male)
-colnames(design_male) <- make.names(colnames(design_male))
-contrast.matrix <- makeContrasts(RA_vs_Control = group_maleRA - group_malehealthy.control, levels = design_male)
+exprs_female_matrix <- exprs_female[, !(colnames(exprs_female) %in% c("probe_id", "gene_symbol"))]
 
-fit <- lmFit(exprs_male, design_male)
+
+
+group_female <- factor(pheno_female$`disease state:ch1`)
+design_female <- model.matrix(~ 0 + group_female)
+colnames(design_female) <- make.names(colnames(design_female))
+contrast.matrix <- makeContrasts(RA_vs_Control = group_femaleRA - group_femalehealthy.control, levels = design_female)
+
+
+
+
+fit <- lmFit(exprs_female_matrix, design_female)
 fit2 <- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
 
-# Get results
 results <- topTable(fit2, adjust = "fdr", number = Inf)
 
 results$probe_id <- rownames(results)
 results_annotated <- merge(results, exprs_annotated[, c("probe_id", "gene_symbol")], by = "probe_id", all.x = TRUE)
 
-significant_DEGs <- results_annotated[results_annotated$adj.P.Val < 0.05 & abs(results_annotated$logFC) > 0.1, ]
-write.csv(results_annotated, "~/Downloads/Desktop/omics_project/week1/GSE272/results_as_csv_272/OVERALL_272_MALE.csv", row.names = FALSE)
 
-
+#significant_DEGs <- results_annotated[results_annotated$adj.P.Val < 0.05 & abs(results_annotated$logFC) > 0.1, ]
+write.csv(results_annotated, "~/Downloads/Desktop/omics_project/week1/GSE272/results_as_csv_272/OVERALL_FEMALE_272.csv", row.names = FALSE)
